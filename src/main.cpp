@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -159,6 +160,11 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
 
 }
 
+void findWay(vector<double> &next_x_values, vector<double> &next_y_values){
+
+
+}
+
 int main() {
   uWS::Hub h;
 
@@ -168,6 +174,7 @@ int main() {
   vector<double> map_waypoints_s;
   vector<double> map_waypoints_dx;
   vector<double> map_waypoints_dy;
+  double ref_v = 49.5;
 
   // Waypoint map to read from
   string map_file_ = "../data/highway_map.csv";
@@ -238,6 +245,18 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
+//            findWay(next_x_vals, next_y_vals);
+
+            //keep lane
+            double s = car_s;
+            double d = car_d;
+            double dist_inc = 0.3;
+            for (int i=0; i < 50; ++i){
+                s += dist_inc;
+                vector<double> next_xy = getXY(s,d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
+                next_x_vals.push_back(next_xy[0]);
+                next_y_vals.push_back(next_xy[1]);
+            }
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
