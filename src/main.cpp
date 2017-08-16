@@ -254,19 +254,37 @@ int main() {
                 next_y_vals.push_back(previous_path_y[j]);
             }
 
+            tk::spline spline;
+            vector<double> spline_points_x;
+            vector<double> spline_points_y;
 
             //keep lane
             int lane = 1;
             double s, d;
-            if (end_path_s == 0 || end_path_d == 0){
+            if (size <= 0){
                 s = car_s;
                 d = car_d;
+                spline_points_x.push_back(car_x);
+                spline_points_y.push_back(car_y);
             }else{
                 s = end_path_s;
                 d = end_path_d;
+                spline_points_x.push_back(previous_path_x.back());
+                spline_points_y.push_back(previous_path_y.back());
             }
 
-            cout << car_speed << endl;
+            vector<double> p1 = getXY(s+10,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+            vector<double> p2 = getXY(s+20,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+            vector<double> p3 = getXY(s+30,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+            spline_points_x.push_back(p1[0]);
+            spline_points_x.push_back(p2[0]);
+            spline_points_x.push_back(p3[0]);
+            spline_points_y.push_back(p1[1]);
+            spline_points_y.push_back(p2[1]);
+            spline_points_y.push_back(p3[1]);
+            spline.set_points(spline_points_x, spline_points_y);
+
+            cout << "Car speed: " << car_speed << endl;
             for (int i=0; i <= (50-size); ++i){
                 if(dist_inc < ref_inc){
                     dist_inc += 0.01;
@@ -276,10 +294,9 @@ int main() {
                 s += dist_inc;
                 vector<double> next_xy = getXY(s,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
                 next_x_vals.push_back(next_xy[0]);
-                next_y_vals.push_back(next_xy[1]);
+                next_y_vals.push_back(spline(next_xy[0]));
             }
 
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
