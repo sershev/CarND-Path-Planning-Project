@@ -203,7 +203,9 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  double ref_inc = 0.440;
+  double dist_inc = 0;
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &ref_inc, &dist_inc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -243,17 +245,36 @@ int main() {
           	json msgJson;
 
           	vector<double> next_x_vals;
-          	vector<double> next_y_vals;
+            vector<double> next_y_vals;
 
-//            findWay(next_x_vals, next_y_vals);
+
+            int size = previous_path_x.size();
+            for (int j = 0; j< size; j++){
+                next_x_vals.push_back(previous_path_x[j]);
+                next_y_vals.push_back(previous_path_y[j]);
+            }
+
 
             //keep lane
-            double s = car_s;
-            double d = car_d;
-            double dist_inc = 0.3;
-            for (int i=0; i < 50; ++i){
+            int lane = 1;
+            double s, d;
+            if (end_path_s == 0 || end_path_d == 0){
+                s = car_s;
+                d = car_d;
+            }else{
+                s = end_path_s;
+                d = end_path_d;
+            }
+
+            cout << car_speed << endl;
+            for (int i=0; i <= (50-size); ++i){
+                if(dist_inc < ref_inc){
+                    dist_inc += 0.01;
+                }else{
+                    dist_inc -= 0.01;
+                }
                 s += dist_inc;
-                vector<double> next_xy = getXY(s,d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
+                vector<double> next_xy = getXY(s,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
                 next_x_vals.push_back(next_xy[0]);
                 next_y_vals.push_back(next_xy[1]);
             }
