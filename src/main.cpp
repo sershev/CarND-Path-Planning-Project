@@ -260,41 +260,72 @@ int main() {
 
             //keep lane
             int lane = 1;
-            double s, d;
-            if (size <= 0){
+            double s, d, latest_yaw;
+            double last_x, last_y;
+            double car_yaw_rad = deg2rad(car_yaw);
+            if (size == 0){
                 s = car_s;
                 d = car_d;
-                spline_points_x.push_back(car_x);
-                spline_points_y.push_back(car_y);
-            }else{
+                last_x = car_x;
+                last_y = car_y;
+                double bef_last_x = car_x - cos(car_yaw);
+                double bef_last_y = car_y - sin(car_yaw);
+                latest_yaw = car_yaw_rad;
+            }
+//            else if(size == 1){
+//                s = end_path_s;
+//                d = end_path_d;
+//                last_x = previous_path_x.back();
+//                last_y = previous_path_y.back();
+//                double bef_last_x = car_x - cos(car_yaw);
+//                double bef_last_y = car_y - sin(car_yaw);
+//                latest_yaw = atan2(car_x-bef_last_x, car_y-bef_last_y);
+//                spline_points_x.push_back(bef_last_x);
+//                spline_points_y.push_back(bef_last_y);
+//            }
+            else{
                 s = end_path_s;
                 d = end_path_d;
-                spline_points_x.push_back(previous_path_x.back());
-                spline_points_y.push_back(previous_path_y.back());
+                last_x = previous_path_x.back();
+                last_y = previous_path_y.back();
+                double bef_last_x = previous_path_x[size-2];
+                double bef_last_y = previous_path_y[size-2];
+                latest_yaw = atan2(last_y-bef_last_y, last_x-bef_last_x);
+                spline_points_x.push_back(car_x);
+                spline_points_y.push_back(car_y);
+            }
+            spline_points_x.push_back(last_x);
+            spline_points_y.push_back(last_y);
+
+
+            // Decide what to do next
+
+
+            for (int i = 1; i <= 3; ++i){
+                vector<double> p = getXY(s+30*i,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+
+                spline_points_x.push_back(p[0]);
+                spline_points_y.push_back(p[1]);
+
             }
 
-            vector<double> p1 = getXY(s+10,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
-            vector<double> p2 = getXY(s+20,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
-            vector<double> p3 = getXY(s+30,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
-            spline_points_x.push_back(p1[0]);
-            spline_points_x.push_back(p2[0]);
-            spline_points_x.push_back(p3[0]);
-            spline_points_y.push_back(p1[1]);
-            spline_points_y.push_back(p2[1]);
-            spline_points_y.push_back(p3[1]);
             spline.set_points(spline_points_x, spline_points_y);
 
+            // Perform the decision
             cout << "Car speed: " << car_speed << endl;
+            cout << "Last yaw: " << latest_yaw << endl;
             for (int i=0; i <= (50-size); ++i){
+                cout << "dist_inc: " << dist_inc << endl;
                 if(dist_inc < ref_inc){
-                    dist_inc += 0.01;
+                    dist_inc += 0.002;
                 }else{
-                    dist_inc -= 0.01;
+                    dist_inc -= 0.002;
                 }
-                s += dist_inc;
-                vector<double> next_xy = getXY(s,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
-                next_x_vals.push_back(next_xy[0]);
-                next_y_vals.push_back(spline(next_xy[0]));
+                last_x += dist_inc * cos(latest_yaw);
+                next_x_vals.push_back(last_x);
+                next_y_vals.push_back(spline(last_x));
+                cout << "X: " << next_x_vals[i] << endl;
+                cout << "Y: " << next_y_vals[i] << endl;
             }
 
           	msgJson["next_x"] = next_x_vals;
