@@ -259,6 +259,7 @@ int main() {
             vector<double> spline_points_y;
 
             //keep lane
+            ref_inc = 0.440;
             int lane = 1;
             double s, d, latest_yaw;
             double last_x, last_y;
@@ -299,6 +300,47 @@ int main() {
 
 
             // Decide what to do next
+            double vx, vy, vs, vd, v, v_mps;
+            int my_current_lane = (int)(car_d/4);
+            bool car_in_front = false;
+            bool try_to_switch = false;
+            double min_dist = 99999.0;
+            bool is_car_left = false, is_car_rigth = false;
+            if(my_current_lane == 0){
+                is_car_left = true; //we dont switch left
+            }else if(my_current_lane == 2){
+                is_car_rigth = true; //we dont switch right
+            }
+
+            for(int i = 0; i < sensor_fusion.size(); i++){
+                vx = sensor_fusion[i][3];
+                vy = sensor_fusion[i][4];
+                vs = sensor_fusion[i][5];
+                vd = sensor_fusion[i][6];
+                v  = sqrt(vx*vx+vy*vy);
+                v_mps = (v * 1.6 / 36)*0.2;
+                int v_lane = (int)(vd/4);
+                if(my_current_lane == v_lane){
+                    double dist_diff = vs-s;
+/*                    if(dist_diff<2 && dist_diff > 0){
+                        // my speed slows down
+                        ref_inc = v_mps;
+                        break;
+                    }
+                    else */if(dist_diff<5 && dist_diff > 0){
+                        //my speed = car_speed
+                        ref_inc = v_mps;
+                        try_to_switch = true;
+                        break;
+                    }else{
+                        //Do nothing special for now
+
+                    }
+                }
+                else if(v_lane == (my_current_lane-1)){
+
+                }
+            }
 
 
             for (int i = 1; i <= 3; ++i){
@@ -321,7 +363,7 @@ int main() {
                 }else{
                     dist_inc -= 0.002;
                 }
-                last_x += dist_inc * cos(latest_yaw);
+                last_x += dist_inc * max(cos(latest_yaw),0.001); //shift coordinates would be better I guess.
                 next_x_vals.push_back(last_x);
                 next_y_vals.push_back(spline(last_x));
                 cout << "X: " << next_x_vals[i] << endl;
