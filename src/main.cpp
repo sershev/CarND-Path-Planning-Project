@@ -160,9 +160,14 @@ vector<double> getXY(double s, double d, vector<double> maps_s, vector<double> m
 
 }
 
-void findWay(vector<double> &next_x_values, vector<double> &next_y_values){
+vector<double> shift_point(double px, double py, double yaw, double origin_x, double origin_y){
 
+    double diff_x = px-origin_x;
+    double diff_y = py-origin_y;
 
+    double shift_x = (diff_x *cos(0-yaw)-diff_y*sin(0-yaw));
+    double shift_y = (diff_x *sin(0-yaw)+diff_y*cos(0-yaw));
+    return {shift_x, shift_y};
 }
 
 int main() {
@@ -293,11 +298,13 @@ int main() {
                 double bef_last_x = previous_path_x[size-2];
                 double bef_last_y = previous_path_y[size-2];
                 latest_yaw = atan2(last_y-bef_last_y, last_x-bef_last_x);
-                spline_points_x.push_back(car_x);
-                spline_points_y.push_back(car_y);
+//                vector<double> shifted_car_pos = shift_point(car_x, car_y, car_yaw, last_x, last_y);
+//                spline_points_x.push_back(shifted_car_pos[0]);
+//                spline_points_y.push_back(shifted_car_pos[1]);
             }
-            spline_points_x.push_back(last_x);
-            spline_points_y.push_back(last_y);
+            vector<double> shifted_last = shift_point(last_x, last_y, latest_yaw, last_x, last_y);
+            spline_points_x.push_back(shifted_last[0]);
+            spline_points_y.push_back(shifted_last[1]);
 
 
             // Decide what to do next
@@ -383,9 +390,15 @@ int main() {
                 cout << "next-d: " << next_d << endl;
                 vector<double> p = getXY(s+spline_inc*i,next_d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
 
-                spline_points_x.push_back(p[0]);
-                spline_points_y.push_back(p[1]);
+                vector<double> p_shifted =  shift_point(p[0], p[1], latest_yaw, last_x, last_y);
 
+                spline_points_x.push_back(p_shifted[0]);
+                spline_points_y.push_back(p_shifted[1]);
+
+            }
+
+            for (int i = 0; i< spline_points_x.size(); ++i){
+                cout << "x: " << spline_points_x[i] << ", y: " << spline_points_y[i] << endl;
             }
 
             spline.set_points(spline_points_x, spline_points_y);
@@ -393,6 +406,7 @@ int main() {
             // Perform the decision
 //            cout << "Car speed: " << car_speed << endl;
 //            cout << "Last yaw: " << latest_yaw << endl;
+            double temp_way_point_x = 0, temp_way_point_y = 0;
             for (int i=0; i <= (50-size); ++i){
 //                cout << "dist_inc: " << dist_inc << endl;
                 if(dist_inc < ref_inc){
@@ -400,11 +414,18 @@ int main() {
                 }else{
                     dist_inc -= 0.002;
                 }
-                last_x += dist_inc * cos(latest_yaw); //shift coordinates would be better I guess.
-                next_x_vals.push_back(last_x);
-                next_y_vals.push_back(spline(last_x));
-//                cout << "X: " << next_x_vals[i] << endl;
-//                cout << "Y: " << next_y_vals[i] << endl;
+                temp_way_point_x += dist_inc; //shift coordinates would be better I guess.
+                temp_way_point_y = spline(temp_way_point_x);
+
+                cout << "x back: " << temp_way_point_x << ", y back: " << temp_way_point_y << endl;
+
+                double shift_back_x = (temp_way_point_x *cos(latest_yaw)-temp_way_point_y*sin(latest_yaw)) + last_x;
+                double shift_back_y = (temp_way_point_x *sin(latest_yaw)+temp_way_point_y*cos(latest_yaw)) + last_y;
+
+                next_x_vals.push_back(shift_back_x);
+                next_y_vals.push_back(shift_back_y);
+                cout << "X: " << next_x_vals[i] << endl;
+                cout << "Y: " << next_y_vals[i] << endl;
             }
 
           	msgJson["next_x"] = next_x_vals;
