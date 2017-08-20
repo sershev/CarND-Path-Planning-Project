@@ -203,9 +203,10 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
-  double ref_inc = 0.440;
+  double ref_inc = 0.430;
   double dist_inc = 0;
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &ref_inc, &dist_inc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  double target_lane = 1;
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &ref_inc, &dist_inc, &target_lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -259,7 +260,7 @@ int main() {
             vector<double> spline_points_y;
 
             //keep lane
-            ref_inc = 0.440;
+            ref_inc = 0.430;
             int lane = 1;
             double s, d, latest_yaw;
             double last_x, last_y;
@@ -300,18 +301,22 @@ int main() {
 
 
             // Decide what to do next
-            double vx, vy, vs, vd, v, v_mps;
+            double vx, vy, vs, vd, v, v_mps, dist_diff;
             int my_current_lane = (int)(car_d/4);
+            int v_lane;
             bool car_in_front = false;
             bool try_to_switch = false;
             double min_dist = 99999.0;
-            bool is_car_left = false, is_car_rigth = false;
+            double current_ddiff;
+            int spline_inc = 30;
+            bool is_car_left = false, is_car_right = false;
             if(my_current_lane == 0){
                 is_car_left = true; //we dont switch left
             }else if(my_current_lane == 2){
-                is_car_rigth = true; //we dont switch right
+                is_car_right = true; //we dont switch right
             }
 
+            cout << "My car: d: " << car_d << ", lane: " << my_current_lane << ", s: " << s << endl;
             for(int i = 0; i < sensor_fusion.size(); i++){
                 vx = sensor_fusion[i][3];
                 vy = sensor_fusion[i][4];
@@ -319,32 +324,64 @@ int main() {
                 vd = sensor_fusion[i][6];
                 v  = sqrt(vx*vx+vy*vy);
                 v_mps = (v * 1.6 / 36)*0.2;
-                int v_lane = (int)(vd/4);
+                v_lane = (int)(vd/4);
+                dist_diff = vs-s;
+                current_ddiff = vs - car_s;
+                cout << "Car: " << i << ", vd: " << vd << ", v_lane: " << v_lane << ", vs: " << vs << ", dist_diff: " << dist_diff << endl;
                 if(my_current_lane == v_lane){
-                    double dist_diff = vs-s;
-/*                    if(dist_diff<2 && dist_diff > 0){
+
+                    if(current_ddiff < 5 && current_ddiff > 0){
                         // my speed slows down
-                        ref_inc = v_mps;
+                        ref_inc = v_mps-0.02;
                         break;
                     }
-                    else */if(dist_diff<5 && dist_diff > 0){
+                    else if(dist_diff<15 && dist_diff > 0){
                         //my speed = car_speed
                         ref_inc = v_mps;
+                        cout << "SWITCH!!!" << endl;
                         try_to_switch = true;
+//                        cout << "Dist diff: " << dist_diff << endl;
                         break;
                     }else{
+//                        cout << "Dist diff: " << dist_diff << endl;
                         //Do nothing special for now
 
                     }
                 }
-                else if(v_lane == (my_current_lane-1)){
-
+                else if(!is_car_left && (v_lane == (my_current_lane-1))){
+                    if(dist_diff<25 && dist_diff>-5){
+                           is_car_left = true;
+                    }
+                }
+                else if(!is_car_right && (v_lane == (my_current_lane+1))){
+                    if(dist_diff<25 && dist_diff>-5){
+                           is_car_right = true;
+                    }
                 }
             }
 
 
-            for (int i = 1; i <= 3; ++i){
-                vector<double> p = getXY(s+30*i,(2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
+            if (try_to_switch){
+                if(!is_car_left){
+                    target_lane = my_current_lane-1;
+                    ref_inc = 0.430;
+                    spline_inc = 100;
+                }
+                else if(!is_car_right){
+                    target_lane = my_current_lane+1;
+                    ref_inc = 0.430;
+                    spline_inc = 100;
+                }
+            }
+            cout << "Target lane: " << target_lane << endl;
+            cout << "current lane: " << my_current_lane << endl;
+            int n = 3;
+            double shift = (target_lane-my_current_lane);
+            for (int i = 1; i <= n; ++i){
+//                double next_d = 2+4*(my_current_lane+shift);
+                double next_d = 2+4*target_lane;
+                cout << "next-d: " << next_d << endl;
+                vector<double> p = getXY(s+spline_inc*i,next_d,map_waypoints_s,map_waypoints_x,map_waypoints_y);
 
                 spline_points_x.push_back(p[0]);
                 spline_points_y.push_back(p[1]);
@@ -354,20 +391,20 @@ int main() {
             spline.set_points(spline_points_x, spline_points_y);
 
             // Perform the decision
-            cout << "Car speed: " << car_speed << endl;
-            cout << "Last yaw: " << latest_yaw << endl;
+//            cout << "Car speed: " << car_speed << endl;
+//            cout << "Last yaw: " << latest_yaw << endl;
             for (int i=0; i <= (50-size); ++i){
-                cout << "dist_inc: " << dist_inc << endl;
+//                cout << "dist_inc: " << dist_inc << endl;
                 if(dist_inc < ref_inc){
                     dist_inc += 0.002;
                 }else{
                     dist_inc -= 0.002;
                 }
-                last_x += dist_inc * max(cos(latest_yaw),0.001); //shift coordinates would be better I guess.
+                last_x += dist_inc * cos(latest_yaw); //shift coordinates would be better I guess.
                 next_x_vals.push_back(last_x);
                 next_y_vals.push_back(spline(last_x));
-                cout << "X: " << next_x_vals[i] << endl;
-                cout << "Y: " << next_y_vals[i] << endl;
+//                cout << "X: " << next_x_vals[i] << endl;
+//                cout << "Y: " << next_y_vals[i] << endl;
             }
 
           	msgJson["next_x"] = next_x_vals;
