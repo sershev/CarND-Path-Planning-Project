@@ -339,18 +339,12 @@ int main() {
                 cout << "Car: " << i << ", vd: " << vd << ", v_lane: " << v_lane << ", vs: " << vs << ", dist_diff: " << dist_diff << endl;
                 if(my_current_lane == v_lane){
 
-                    if(current_ddiff < 5 && current_ddiff > 0){
-                        // my speed slows down
-                        ref_inc = v_mps-0.02;
-                        break;
-                    }
-                    else if(dist_diff<15 && dist_diff > 0){
+                    if((dist_diff < 5) && (dist_diff > 0)){
                         //my speed = car_speed
                         ref_inc = v_mps;
                         cout << "SWITCH!!!" << endl;
                         try_to_switch = true;
 //                        cout << "Dist diff: " << dist_diff << endl;
-                        break;
                     }else{
 //                        cout << "Dist diff: " << dist_diff << endl;
                         //Do nothing special for now
@@ -358,15 +352,27 @@ int main() {
                     }
                 }
                 else if(!is_car_left && (v_lane == (my_current_lane-1))){
-                    if(dist_diff<25 && dist_diff>-5){
+//                    if((dist_diff < 25) && (dist_diff >-5) && (current_ddiff > -3)){
+                    if((vs > (car_s-5)) && (vs < s+10)){
                            is_car_left = true;
                     }
                 }
                 else if(!is_car_right && (v_lane == (my_current_lane+1))){
-                    if(dist_diff<25 && dist_diff>-5){
+//                    if((dist_diff < 25) && (dist_diff >- 5) && (current_ddiff > -3)){
+                    if((vs > (car_s-5)) && (vs < (s+10))){
                            is_car_right = true;
                     }
                 }
+                if((current_ddiff < 10) && (current_ddiff > -3) && abs(vd - car_d) < 1){
+                    // my speed slows down
+                    target_lane = my_current_lane;
+                    ref_inc = v_mps-v_mps;
+                    try_to_switch = false;
+                    break;
+                }
+
+
+
             }
 
 
